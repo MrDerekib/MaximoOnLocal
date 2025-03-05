@@ -6,10 +6,10 @@ import webbrowser
 db_path = "maximo_data.db"
 
 
-def fetch_data(filter_text):
+def fetch_data(filter_text, search_by):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    query = "SELECT * FROM maximo WHERE ot LIKE ?"
+    query = f"SELECT * FROM maximo WHERE {search_by} LIKE ?"
     cursor.execute(query, (f"%{filter_text}%",))
     rows = cursor.fetchall()
     conn.close()
@@ -25,17 +25,18 @@ def update_table():
     for row in tree.get_children():
         tree.delete(row)
     filter_text = search_var.get()
-    data = fetch_data(filter_text)
+    search_by = search_option.get()
+    data = fetch_data(filter_text, search_by)
     for row in data:
         tree.insert("", "end", values=row)
 
 
 def create_gui():
-    global tree, search_var
+    global tree, search_var, search_option
 
     root = tk.Tk()
     root.title("Cliente de Base de Datos Maximo")
-    root.geometry("800x600")
+    root.geometry("1000x600")
 
     frame = tk.Frame(root)
     frame.pack(pady=20)
@@ -44,10 +45,15 @@ def create_gui():
     search_entry = tk.Entry(frame, textvariable=search_var, width=50)
     search_entry.pack(side=tk.LEFT, padx=10)
 
+    search_option = tk.StringVar(value="OT")
+    search_dropdown = ttk.Combobox(frame, textvariable=search_option, values=["OT", "Nº_de_serie", "Descripción"],
+                                   state="readonly")
+    search_dropdown.pack(side=tk.LEFT, padx=10)
+
     search_button = tk.Button(frame, text="Buscar", command=update_table)
     search_button.pack(side=tk.LEFT)
 
-    columns = ("OT", "A", "B", "C", "D", "E", "F")
+    columns = ("OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta")
     tree = ttk.Treeview(root, columns=columns, show="headings")
     for col in columns:
         tree.heading(col, text=col)
