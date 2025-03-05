@@ -110,20 +110,17 @@ def move_latest_file(destination_folder):
 def process_html_table(file_path):
     print(f"Procesando archivo: {file_path}")
     dfs = pd.read_html(file_path)
-    df = dfs[0]
-    df = df.iloc[1:, :]  # Eliminar primera fila (headers duplicados)
-    df = df.iloc[:, [0, 12, 15, 2, 3, 9, 5, 6,
-                     25]]  # Añadiendo columna 'Planta' de la posición Z (índice 25)  # Ajustar selección de columnas
-
-    df.columns = ["OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta",
-                   "Extra"]
-    df = df.drop(columns=["Extra"])  # Eliminar columna extra innecesaria  # Eliminar columna extra si no es necesaria
-    df.iloc[:, 3] = pd.to_datetime(df.iloc[:, 3], format='%d/%m/%y %H:%M:%S', errors='coerce').dt.strftime('%Y-%m-%d')
-    df.iloc[:, 2] = df.iloc[:, 2].astype(str)
+    print("Columnas detectadas en la tabla HTML:", dfs[0].columns)
+    print("Columnas reales en la tabla HTML:", dfs[0].columns)
+    df = dfs[0].iloc[1:, [0, 12, 15, 2, 3, 9, 5, 13]].copy()
+    df.columns = ["OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta"]
+    df["Fecha"] = pd.to_datetime(df["Fecha"], format='%d/%m/%y %H:%M:%S', errors='coerce').dt.strftime('%Y-%m-%d')
+    df['Planta'] = df['Planta'].fillna('').astype(str).str.strip()
     df = df.where(pd.notnull(df), None)
-    df = df.dropna(how='all')
-    df = df[df['OT'].notna() & df['OT'].astype(
-        str).str.strip() != '']  # Eliminar filas sin OT válida  # Eliminar filas completamente vacías  # Reemplazar NaN y NaT por None
+    if 'ColumnaExtra' in df.columns:
+        df = df.drop(columns=['ColumnaExtra'])
+      # Eliminar columna extra innecesaria
+    print("Valores en la columna seleccionada como 'Planta':", df['Planta'].unique())
     print("Archivo procesado correctamente.")
     return df
 
@@ -141,7 +138,6 @@ def update_database(df):
                         Tipo_de_trabajo TEXT,
                         Seguimiento TEXT,
                         Planta TEXT)''')
-
     for _, row in df.iterrows():
         cursor.execute('''INSERT OR IGNORE INTO maximo VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', tuple(row))
     conn.commit()
