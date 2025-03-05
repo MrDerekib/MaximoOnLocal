@@ -1,0 +1,196 @@
+import os
+import time
+import getpass
+import shutil
+import sqlite3
+import pandas as pd
+import json
+from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.firefox import GeckoDriverManager
+
+download_dir = os.path.expanduser("~/Downloads")
+db_path = "maximo_data.db"
+
+
+def setup_driver():
+    print("Inicializando el navegador...")
+    options = webdriver.FirefoxOptions()
+    options.set_preference("browser.download.folderList", 2)
+    options.set_preference("browser.download.dir", download_dir)
+    options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/vnd.ms-excel")
+    options.set_preference("pdfjs.disabled", True)
+    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
+    print("Navegador inicializado correctamente.")
+    return driver
+
+
+def login(driver, url, username, password):
+    max_attempts = 3
+    attempt = 0
+    while attempt < max_attempts:
+        print(f"Intento {attempt + 1} de {max_attempts} para cargar la página de login...")
+        driver.get(url)
+        time.sleep(5)
+        body_text = driver.find_element(By.TAG_NAME, "body").text
+        if "Maximo" in driver.title and len(body_text) > 50:
+            print("Página de login cargada correctamente.")
+            break
+        else:
+            print("Error al cargar la página. Reintentando...")
+            attempt += 1
+            if attempt == max_attempts:
+                print("No se pudo cargar la página después de 3 intentos. Saliendo...")
+                driver.quit()
+                exit(1)
+    print("Ingresando credenciales...")
+    driver.find_element(By.ID, "username").send_keys(username)
+    driver.find_element(By.ID, "password").send_keys(password + Keys.RETURN)
+    time.sleep(5)
+
+    # Verificar si hay error de login
+    try:
+        error_element = driver.find_element(By.CLASS_NAME, "errorText")
+        error_message = error_element.text if error_element else ""
+        if "BMXAA7901E" in error_message:
+            print("Error: Credenciales incorrectas. No se puede iniciar sesión.")
+            driver.quit()
+            exit(1)
+            print("Error: Credenciales incorrectas. No se puede iniciar sesión.")
+            driver.quit()
+            exit(1)
+    except:
+        print("Login exitoso. Continuando...")
+
+    print("Accediendo a la sección de filtros...")
+    driver.find_element(By.ID, "FavoriteApp_WO_TR").click()
+    time.sleep(5)
+    print("Sección de filtros abierta.")
+
+
+def apply_filter(driver, filters):
+    print("Aplicando filtros...")
+    for field_id, value in filters.items():
+        print(f"Llenando campo {field_id} con {value}")
+        field = driver.find_element(By.ID, field_id)
+        field.clear()
+        field.send_keys(value)
+        time.sleep(1)
+    field.send_keys(Keys.RETURN)
+    time.sleep(5)
+    print("Filtros aplicados correctamente.")
+
+
+def download_file(driver):
+    print("Descargando archivo...")
+    time.sleep(5)
+    download_button = driver.find_element(By.ID, "mx38-lb4")
+    driver.execute_script("arguments[0].click();", download_button)
+    time.sleep(10)
+    print("Archivo descargado correctamente.")
+
+
+def move_latest_file(destination_folder):
+    print("Moviendo archivo descargado...")
+    files = sorted([f for f in os.listdir(download_dir) if f.endswith(".xls")],
+                   key=lambda x: os.path.getctime(os.path.join(download_dir, x)), reverse=True)
+    if files:
+        latest_file = os.path.join(download_dir, files[0])
+        new_location = os.path.join(destination_folder, files[0])
+        shutil.move(latest_file, new_location)
+        print(f"Archivo movido a {new_location}")
+        return new_location
+    print("No se encontró archivo para mover.")
+    return None
+
+
+def process_html_table(file_path):
+    print(f"Procesando archivo: {file_path}")
+    dfs = pd.read_html(file_path)
+    df = dfs[0]
+    df = df.iloc[1:, :]  # Eliminar primera fila (headers duplicados)
+    df = df.iloc[:, [0, 12, 15, 2, 3, 9, 5, 6,
+                     25]]  # Añadiendo columna 'Planta' de la posición Z (índice 25)  # Ajustar selección de columnas
+
+    df.columns = ["OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta",
+                   "Extra"]
+    df = df.drop(columns=["Extra"])  # Eliminar columna extra innecesaria  # Eliminar columna extra si no es necesaria
+    df.iloc[:, 3] = pd.to_datetime(df.iloc[:, 3], format='%d/%m/%y %H:%M:%S', errors='coerce').dt.strftime('%Y-%m-%d')
+    df.iloc[:, 2] = df.iloc[:, 2].astype(str)
+    df = df.where(pd.notnull(df), None)
+    df = df.dropna(how='all')
+    df = df[df['OT'].notna() & df['OT'].astype(
+        str).str.strip() != '']  # Eliminar filas sin OT válida  # Eliminar filas completamente vacías  # Reemplazar NaN y NaT por None
+    print("Archivo procesado correctamente.")
+    return df
+
+
+def update_database(df):
+    print("Actualizando base de datos...")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS maximo (
+                        OT TEXT PRIMARY KEY,
+                        Descripción TEXT,
+                        Nº_de_serie TEXT,
+                        Fecha TEXT,
+                        Cliente TEXT,
+                        Tipo_de_trabajo TEXT,
+                        Seguimiento TEXT,
+                        Planta TEXT)''')
+
+    for _, row in df.iterrows():
+        cursor.execute('''INSERT OR IGNORE INTO maximo VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', tuple(row))
+    conn.commit()
+    conn.close()
+    print("Base de datos actualizada.")
+
+
+
+
+def save_credentials(username, password, filepath="credentials.json"):
+    credentials = {"username": username, "password": password}
+    with open(filepath, "w") as file:
+        json.dump(credentials, file)
+
+
+def load_credentials(filepath="credentials.json"):
+    if os.path.exists(filepath):
+        with open(filepath, "r") as file:
+            return json.load(file)
+    return None
+
+
+if __name__ == "__main__":
+    URL = "https://eam.indraweb.net/maximo/webclient/login/login.jsp"
+    stored_credentials = load_credentials()
+    if stored_credentials:
+        print("Usando credenciales guardadas.")
+        USERNAME = stored_credentials["username"]
+        PASSWORD = stored_credentials["password"]
+    else:
+        USERNAME = input("Usuario: ")
+        PASSWORD = getpass.getpass("Contraseña: ")
+        save_credentials(USERNAME, PASSWORD)
+    PASSWORD = getpass.getpass("Contraseña: ")
+    DEST_FOLDER = os.path.expanduser("~/Documents/Maximo")
+    os.makedirs(DEST_FOLDER, exist_ok=True)
+
+    filters = {"mx38_tfrow_[C:4]_txt-tb": "=TMB"}  # Ajustar filtros según proyecto
+
+    driver = setup_driver()
+    try:
+        login(driver, URL, USERNAME, PASSWORD)
+        apply_filter(driver, filters)
+        download_file(driver)
+        file_path = move_latest_file(DEST_FOLDER)
+        if file_path:
+            df = process_html_table(file_path)
+            update_database(df)
+            print("Base de datos actualizada con éxito.")
+    finally:
+        driver.quit()
+        print("Navegador cerrado.")
