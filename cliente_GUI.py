@@ -2,6 +2,7 @@ import sqlite3
 import tkinter as tk
 from tkinter import ttk
 import webbrowser
+import tkinter.font as tkFont
 
 db_path = "maximo_data.db"
 
@@ -16,9 +17,60 @@ def fetch_data(filter_text, search_by):
     return rows
 
 
+from update_database import setup_driver, login
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+
 def open_maximo(ot):
-    url = f"https://eam.indraweb.net/maximo/ui/?ot={ot}"
-    webbrowser.open(url)
+    URL = "https://eam.indraweb.net/maximo/webclient/login/login.jsp"
+    from update_database import load_credentials
+    stored_credentials = load_credentials()
+    if not stored_credentials:
+        cred_window = tk.Toplevel()
+        cred_window.geometry("300x150")
+        cred_window.title("Ingrese sus credenciales")
+        tk.Label(cred_window, text="Usuario:").pack()
+        username_entry = tk.Entry(cred_window)
+        username_entry.focus_set()
+        username_entry.pack()
+        tk.Label(cred_window, text="Contraseña:").pack()
+        password_entry = tk.Entry(cred_window, show="*")
+        password_entry.pack()
+        password_entry.bind("<Return>", lambda event: save_credentials())
+
+        def save_credentials():
+            from update_database import save_credentials
+            nonlocal stored_credentials
+            stored_credentials = {"username": username_entry.get(), "password": password_entry.get()}
+            save_credentials(stored_credentials["username"], stored_credentials["password"])
+            cred_window.destroy()
+
+        tk.Button(cred_window, text="Guardar", command=save_credentials).pack()
+        cred_window.wait_window()
+    if not stored_credentials:
+        print("Error: No hay credenciales guardadas.")
+        return
+
+    USERNAME = stored_credentials["username"]
+    PASSWORD = stored_credentials["password"]
+
+    driver = setup_driver()
+    try:
+        login(driver, URL, USERNAME, PASSWORD)
+        print("Login exitoso, accediendo a la búsqueda de OT...")
+
+        time.sleep(5)  # Esperar a que cargue la interfaz de Maximo
+        search_box = driver.find_element(By.ID, "quicksearch")
+        search_box.send_keys(ot)
+        search_box.send_keys(Keys.RETURN)
+        print("OT ingresada y búsqueda ejecutada correctamente.")
+        # Próximo paso: esperar tu guía para encontrar el input donde pegar la OT
+
+    except Exception as e:
+        print(f"Error al abrir Maximo: {e}")
+        driver.quit()
 
 
 def update_table():
@@ -58,6 +110,7 @@ def create_gui():
 
     columns = ("OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta")
     tree = ttk.Treeview(root, columns=columns, show="headings")
+
     for col in columns:
         tree.heading(col, text=col)
 
@@ -78,3 +131,4 @@ def create_gui():
 
 if __name__ == "__main__":
     create_gui()
+
