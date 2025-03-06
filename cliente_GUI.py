@@ -1,5 +1,6 @@
 import sqlite3
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import ttk
 import webbrowser
 import tkinter.font as tkFont
@@ -115,6 +116,36 @@ def create_gui():
         tree.heading(col, text=col)
 
     tree.pack(expand=True, fill="both")
+
+    def copy_to_clipboard():
+        selected_item = tree.selection()
+        if selected_item:
+            item_values = tree.item(selected_item, "values")
+            if item_values:
+                col_index = selected_column
+                col_index = selected_column  # Convertir a índice de columna (0-based)
+                if 0 <= col_index < len(item_values):
+                    value = item_values[col_index]
+                    root.clipboard_clear()
+                    root.clipboard_append(value)
+                    root.update()
+                    print(f"Copiado al portapapeles: {value}")
+                    tk.messagebox.showinfo("Copiado", f"Se copió: {value}")
+
+    # Crear menú contextual
+    menu = tk.Menu(root, tearoff=0)
+    menu.add_command(label="Copiar", command=copy_to_clipboard)
+
+    def show_context_menu(event):
+        global selected_column
+        selected_item = tree.selection()
+        if selected_item:
+            col = tree.identify_column(event.x)
+            selected_column = int(col[1:]) - 1  # Convertir a índice de columna (0-based)
+            menu.post(event.x_root, event.y_root)
+        menu.post(event.x_root, event.y_root)
+
+    tree.bind("<Button-3>", show_context_menu)
 
     def on_double_click(event):
         selected_item = tree.selection()
