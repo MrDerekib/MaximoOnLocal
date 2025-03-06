@@ -119,7 +119,7 @@ def process_html_table(file_path):
     df = df.where(pd.notnull(df), None)
     if 'ColumnaExtra' in df.columns:
         df = df.drop(columns=['ColumnaExtra'])
-      # Eliminar columna extra innecesaria
+    # Eliminar columna extra innecesaria
     print("Valores en la columna seleccionada como 'Planta':", df['Planta'].unique())
     print("Archivo procesado correctamente.")
     return df
@@ -145,8 +145,6 @@ def update_database(df):
     print("Base de datos actualizada.")
 
 
-
-
 def save_credentials(username, password, filepath="credentials.json"):
     credentials = {"username": username, "password": password}
     with open(filepath, "w") as file:
@@ -166,12 +164,12 @@ if __name__ == "__main__":
     if stored_credentials:
         print("Usando credenciales guardadas.")
         USERNAME = stored_credentials["username"]
-        PASSWORD = stored_credentials["password"]
+        PASSWORD = stored_credentials.get("password")
     else:
         USERNAME = input("Usuario: ")
         PASSWORD = getpass.getpass("Contraseña: ")
         save_credentials(USERNAME, PASSWORD)
-    PASSWORD = getpass.getpass("Contraseña: ")
+
     DEST_FOLDER = os.path.expanduser("~/Documents/Maximo")
     os.makedirs(DEST_FOLDER, exist_ok=True)
 

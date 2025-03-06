@@ -99,12 +99,12 @@ def create_gui():
     search_entry.pack(side=tk.LEFT, padx=10)
     search_entry.bind("<Return>", lambda event: update_table())
 
-    search_option = tk.StringVar(value="OT")
+    search_option = tk.StringVar(value="Nº_de_serie")
     radio_frame = tk.Frame(frame)
     radio_frame.pack(side=tk.LEFT, padx=10)
-    tk.Radiobutton(radio_frame, text="OT", variable=search_option, value="OT").pack(anchor='w')
     tk.Radiobutton(radio_frame, text="Nº de serie", variable=search_option, value="Nº_de_serie").pack(anchor='w')
     tk.Radiobutton(radio_frame, text="Descripción", variable=search_option, value="Descripción").pack(anchor='w')
+    tk.Radiobutton(radio_frame, text="OT", variable=search_option, value="OT").pack(anchor='w')
 
     search_button = tk.Button(frame, text="Buscar", command=update_table)
     search_button.pack(side=tk.LEFT)
