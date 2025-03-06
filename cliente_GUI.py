@@ -44,11 +44,14 @@ def create_gui():
     search_var = tk.StringVar()
     search_entry = tk.Entry(frame, textvariable=search_var, width=50)
     search_entry.pack(side=tk.LEFT, padx=10)
+    search_entry.bind("<Return>", lambda event: update_table())
 
     search_option = tk.StringVar(value="OT")
-    search_dropdown = ttk.Combobox(frame, textvariable=search_option, values=["OT", "Nº_de_serie", "Descripción"],
-                                   state="readonly")
-    search_dropdown.pack(side=tk.LEFT, padx=10)
+    radio_frame = tk.Frame(frame)
+    radio_frame.pack(side=tk.LEFT, padx=10)
+    tk.Radiobutton(radio_frame, text="OT", variable=search_option, value="OT").pack(anchor='w')
+    tk.Radiobutton(radio_frame, text="Nº de serie", variable=search_option, value="Nº_de_serie").pack(anchor='w')
+    tk.Radiobutton(radio_frame, text="Descripción", variable=search_option, value="Descripción").pack(anchor='w')
 
     search_button = tk.Button(frame, text="Buscar", command=update_table)
     search_button.pack(side=tk.LEFT)
