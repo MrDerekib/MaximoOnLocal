@@ -99,22 +99,24 @@ def create_gui():
     search_entry.pack(side=tk.LEFT, padx=10)
     search_entry.bind("<Return>", lambda event: update_table())
 
-    search_option = tk.StringVar(value="Nº_de_serie")
+    search_option = tk.StringVar(value="OT")
     radio_frame = tk.Frame(frame)
     radio_frame.pack(side=tk.LEFT, padx=10)
+    tk.Radiobutton(radio_frame, text="OT", variable=search_option, value="OT").pack(anchor='w')
     tk.Radiobutton(radio_frame, text="Nº de serie", variable=search_option, value="Nº_de_serie").pack(anchor='w')
     tk.Radiobutton(radio_frame, text="Descripción", variable=search_option, value="Descripción").pack(anchor='w')
-    tk.Radiobutton(radio_frame, text="OT", variable=search_option, value="OT").pack(anchor='w')
 
     search_button = tk.Button(frame, text="Buscar", command=update_table)
     search_button.pack(side=tk.LEFT)
 
     columns = ("OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta")
-    tree = ttk.Treeview(root, columns=columns, show="headings")
+    tree = ttk.Treeview(root, columns=columns, show="headings", yscrollcommand=lambda f, l: scrollbar.set(f, l))
 
     for col in columns:
         tree.heading(col, text=col)
 
+    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+    scrollbar.pack(side="right", fill="y")
     tree.pack(expand=True, fill="both")
 
     def copy_to_clipboard():
