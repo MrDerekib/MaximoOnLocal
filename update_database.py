@@ -80,13 +80,13 @@ def apply_filter(driver, filters):
         field.send_keys(value)
         time.sleep(1)
     field.send_keys(Keys.RETURN)
-    time.sleep(3)
+    time.sleep(5)
     print("Filtros aplicados correctamente.")
 
 
 def download_file(driver):
     print("Descargando archivo...")
-    time.sleep(3)
+    time.sleep(1)
     download_button = driver.find_element(By.ID, "mx38-lb4")
     driver.execute_script("arguments[0].click();", download_button)
     time.sleep(45)
@@ -150,11 +150,37 @@ def update_database(df):
                         Tipo_de_trabajo TEXT,
                         Seguimiento TEXT,
                         Planta TEXT)''')
-    for _, row in df.iterrows():
-        cursor.execute('''INSERT OR IGNORE INTO maximo VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', tuple(row))
+
+    new_entries = 0
+    updated_entries = 0
+
+    for row in df.itertuples(index=False, name=None):
+        cursor.execute("SELECT * FROM maximo WHERE REPLACE(OT, ' ', ' ') = REPLACE(?, ' ', ' ')", (row[0],)), (row[0],)
+        existing_record = cursor.fetchone()
+
+        if existing_record:
+            # Convertir la fila existente a una tupla sin la clave primaria OT
+            existing_data = tuple(str(x).replace(' ', ' ').strip() for x in existing_record[1:])
+            new_data = tuple(str(x).replace(' ', ' ').strip() for x in row[1:])
+
+            if existing_data != new_data:
+                cursor.execute('''UPDATE maximo SET 
+                                    Descripción = ?,
+                                    Nº_de_serie = ?,
+                                    Fecha = ?,
+                                    Cliente = ?,
+                                    Tipo_de_trabajo = ?,
+                                    Seguimiento = ?,
+                                    Planta = ?
+                                WHERE OT = ?''', new_data + (row[0],))
+                updated_entries += 1
+        else:
+            cursor.execute("INSERT INTO maximo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", tuple(str(x).replace(' ', ' ').strip() for x in row)), tuple(row)
+            new_entries += 1
+
     conn.commit()
     conn.close()
-    print("Base de datos actualizada.")
+    print(f"Base de datos actualizada. Nuevas entradas: {new_entries}, Actualizaciones: {updated_entries}")
 
 
 def save_credentials(username, password, filepath="credentials.json"):
@@ -200,3 +226,6 @@ if __name__ == "__main__":
     finally:
         driver.quit()
         print("Navegador cerrado.")
+
+
+#El programa no realiza el conteo correcto de las nuevas entradas y las actualizaciones
