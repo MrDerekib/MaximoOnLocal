@@ -9,10 +9,27 @@ db_path = "maximo_data.db"
 
 
 def fetch_data(filter_text, search_by):
+    filter_words = filter_text.strip().split()
+    if not filter_words:
+        query = "SELECT * FROM maximo"
+        params = ()
+    else:
+        conditions = " AND ".join([f"LOWER({search_by}) LIKE ?" for _ in filter_words])
+        query = f"SELECT * FROM maximo WHERE {conditions}"
+        params = tuple(f"%{word.lower()}%" for word in filter_words)
+        filter_words = filter_text.strip().split()
+    if not filter_words:
+        query = "SELECT * FROM maximo"
+        params = ()
+    else:
+        conditions = " AND ".join([f"LOWER({search_by}) LIKE ?" for _ in filter_words])
+        query = f"SELECT * FROM maximo WHERE {conditions}"
+        params = tuple(f"%{word.lower()}%" for word in filter_words)
+        tuple(f"%{word.lower()}%" for word in filter_words)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    query = f"SELECT * FROM maximo WHERE {search_by} LIKE ?"
-    cursor.execute(query, (f"%{filter_text}%",))
+
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
     return rows
