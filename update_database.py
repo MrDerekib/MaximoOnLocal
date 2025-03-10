@@ -5,7 +5,6 @@ import shutil
 import sqlite3
 import pandas as pd
 import json
-from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -59,9 +58,7 @@ def login(driver, url, username, password):
             print("Error: Credenciales incorrectas. No se puede iniciar sesión.")
             driver.quit()
             exit(1)
-            print("Error: Credenciales incorrectas. No se puede iniciar sesión.")
-            driver.quit()
-            exit(1)
+
     except:
         print("Login exitoso. Continuando...")
 
@@ -110,8 +107,7 @@ def move_latest_file(destination_folder):
 def process_html_table(file_path):
     print(f"Procesando archivo: {file_path}")
     dfs = pd.read_html(file_path)
-    print("Columnas detectadas en la tabla HTML:", dfs[0].columns)
-    print("Columnas reales en la tabla HTML:", dfs[0].columns)
+
     df = dfs[0].iloc[1:, [0, 12, 15, 2, 3, 9, 5, 13]].copy()
     df.columns = ["OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta"]
     df["Fecha"] = pd.to_datetime(df["Fecha"], format='%d/%m/%y %H:%M:%S', errors='coerce').dt.strftime('%Y-%m-%d')
@@ -120,7 +116,7 @@ def process_html_table(file_path):
     if 'ColumnaExtra' in df.columns:
         df = df.drop(columns=['ColumnaExtra'])
     # Eliminar columna extra innecesaria
-    print("Valores en la columna seleccionada como 'Planta':", df['Planta'].unique())
+
     print("Archivo procesado correctamente.")
 
     # Guardar clientes únicos

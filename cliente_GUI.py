@@ -2,30 +2,26 @@ import sqlite3
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
-import webbrowser
-import tkinter.font as tkFont
 
 db_path = "maximo_data.db"
 
-
-def fetch_data(filter_text, search_by):
+def fetch_data(filter_text, search_by, client_filter):
     filter_words = filter_text.strip().split()
-    if not filter_words:
-        query = "SELECT * FROM maximo"
-        params = ()
-    else:
-        conditions = " AND ".join([f"LOWER({search_by}) LIKE ?" for _ in filter_words])
-        query = f"SELECT * FROM maximo WHERE {conditions}"
-        params = tuple(f"%{word.lower()}%" for word in filter_words)
-        filter_words = filter_text.strip().split()
-    if not filter_words:
-        query = "SELECT * FROM maximo"
-        params = ()
-    else:
-        conditions = " AND ".join([f"LOWER({search_by}) LIKE ?" for _ in filter_words])
-        query = f"SELECT * FROM maximo WHERE {conditions}"
-        params = tuple(f"%{word.lower()}%" for word in filter_words)
-        tuple(f"%{word.lower()}%" for word in filter_words)
+    query = "SELECT * FROM maximo"
+    params = []
+
+    conditions = []
+    if filter_words:
+        conditions.append(" AND ".join([f"LOWER({search_by}) LIKE ?" for _ in filter_words]))
+        params.extend(f"%{word.lower()}%" for word in filter_words)
+
+    if client_filter and client_filter != "Todos":
+        conditions.append("Cliente = ?")
+        params.append(client_filter)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
@@ -92,7 +88,26 @@ def open_maximo(ot):
 
 
 def sort_by_column(column):
-    global sort_order
+    # Alternar el orden de la columna seleccionada
+    sort_order[column] = not sort_order[column]
+
+    # Resetear todos los encabezados
+    for col in columns:
+        tree.heading(col, text=col, command=lambda c=col: sort_by_column(c))
+
+    # Obtener y ordenar los datos
+    data = fetch_data(search_var.get(), search_option.get(), client_var.get())
+    column_index = columns.index(column)
+    sorted_data = sorted(data, key=lambda x: x[column_index], reverse=sort_order[column])
+
+    # Limpiar y actualizar la tabla
+    for row in tree.get_children():
+        tree.delete(row)
+    for row in sorted_data:
+        tree.insert("", "end", values=row)
+
+    # Mostrar la flecha solo en la columna activa
+    tree.heading(column, text=f"{column} {'↓' if sort_order[column] else '↑'}", command=lambda: sort_by_column(column))
 
     # Alternar orden solo en la columna seleccionada
     sort_order[column] = not sort_order[column]
@@ -146,14 +161,14 @@ def update_table():
         tree.delete(row)
     filter_text = search_var.get()
     search_by = search_option.get()
-    data = fetch_data(filter_text, search_by)
+    data = fetch_data(filter_text, search_by, client_var.get())
     data.sort(key=lambda x: x[0], reverse=True)  # Ordenar por OT de mayor a menor por defecto
     for row in data:
         tree.insert("", "end", values=row)
 
 
 def create_gui():
-    global tree, search_var, search_option, sort_order, columns
+    global tree, search_var, search_option, sort_order, columns, client_var
 
     root = tk.Tk()
     root.title("Cliente de Base de Datos Maximo")
@@ -161,6 +176,22 @@ def create_gui():
 
     frame = tk.Frame(root)
     frame.pack(pady=20)
+
+    # Leer clientes únicos desde archivo
+    def load_clients():
+        try:
+            with open("clientes_unicos.txt", "r", encoding="utf-8") as f:
+                return [line.strip() for line in f.readlines() if line.strip()]
+        except FileNotFoundError:
+            return []
+
+    clients = ["Todos"] + load_clients()
+    client_var = tk.StringVar()
+    client_label = tk.Label(frame, text="Filtrar por Cliente:")
+    client_label.pack(side=tk.LEFT, padx=10)
+    client_dropdown = ttk.Combobox(frame, textvariable=client_var, values=clients, state="readonly")
+    client_dropdown.pack(side=tk.LEFT, padx=10)
+    client_dropdown.bind("<<ComboboxSelected>>", lambda event: update_table())
 
     search_var = tk.StringVar()
     search_entry = tk.Entry(frame, textvariable=search_var, width=50)
@@ -178,6 +209,7 @@ def create_gui():
     search_button.pack(side=tk.LEFT)
 
     columns = ("OT", "Descripción", "Nº de serie", "Fecha", "Cliente", "Tipo de trabajo", "Seguimiento", "Planta")
+    global sort_order
     sort_order = {col: False for col in columns}  # Estado de ordenación de cada columna
     tree = ttk.Treeview(root, columns=columns, show="headings", yscrollcommand=lambda f, l: scrollbar.set(f, l))
 
