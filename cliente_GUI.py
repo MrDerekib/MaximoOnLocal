@@ -89,6 +89,24 @@ def open_maximo(ot):
 
 def sort_by_column(column):
     # Alternar el orden de la columna seleccionada
+    sort_order[column] = not sort_order.get(column, False)
+
+    # Obtener y ordenar los datos
+    data = fetch_data(search_var.get(), search_option.get(), client_var.get())
+    column_index = columns.index(column)
+    sorted_data = sorted(data, key=lambda x: x[column_index], reverse=sort_order[column])
+
+    # Limpiar y actualizar la tabla
+    for row in tree.get_children():
+        tree.delete(row)
+    for row in sorted_data:
+        tree.insert("", "end", values=row)
+
+    # Actualizar los encabezados para reflejar la ordenación
+    for col in columns:
+        arrow = " ↓" if sort_order.get(col, False) else " ↑"
+        tree.heading(col, text=col + (arrow if col == column else ""), command=lambda c=col: sort_by_column(c))
+    # Alternar el orden de la columna seleccionada
     sort_order[column] = not sort_order[column]
 
     # Resetear todos los encabezados
@@ -118,7 +136,7 @@ def sort_by_column(column):
         tree.heading(col, text=col + (arrow if col == column else ""), command=lambda c=col: sort_by_column(c))
 
     # Ordenar los datos
-    data = fetch_data(search_var.get(), search_option.get())
+    data = fetch_data(search_var.get(), search_option.get(), client_var.get())
     column_index = columns.index(column)
     sorted_data = sorted(data, key=lambda x: x[column_index], reverse=sort_order[column])
 
@@ -133,7 +151,7 @@ def sort_by_column(column):
 
     # Alternar orden solo en la columna seleccionada
     sort_order[column] = not sort_order[column]
-    data = fetch_data(search_var.get(), search_option.get())
+    data = fetch_data(search_var.get(), search_option.get(), client_var.get())
     column_index = columns.index(column)
     sorted_data = sorted(data, key=lambda x: x[column_index], reverse=sort_order[column])
 
@@ -145,7 +163,7 @@ def sort_by_column(column):
     # Mostrar la flecha solo en la columna activa
     tree.heading(column, text=f"{column} {'↓' if sort_order[column] else '↑'}", command=lambda: sort_by_column(column))
     sort_order[column] = not sort_order[column]  # Alternar orden
-    data = fetch_data(search_var.get(), search_option.get())
+    data = fetch_data(search_var.get(), search_option.get(), client_var.get())
     column_index = columns.index(column)
     sorted_data = sorted(data, key=lambda x: x[column_index], reverse=sort_order[column])
     for row in tree.get_children():
