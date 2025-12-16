@@ -1,3 +1,13 @@
+PROYECTO DESCONTINUADO!!
+
+
+SE REFACTORIZA EL PROYECTO Y SE MUEVE A UN NUEVO REPO -> https://github.com/MrDerekib/maximo-client-v2
+
+
+
+
+
+
 # 📌 MaximoOnLocal
 
 **MaximoOnLocal** es una herramienta automatizada para interactuar con IBM Maximo, facilitando la extracción de datos y la actualización de la base de datos local. Incluye una interfaz gráfica en **Tkinter** para la consulta y gestión de registros de manera eficiente.
